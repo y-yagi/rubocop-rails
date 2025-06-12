@@ -59,6 +59,7 @@ module RuboCop
         def on_send(node)
           return unless in_where?(node)
           return if style == :conservative && !root_receiver(node)&.const_type?
+          return if !node.receiver.nil? && !inherit_active_record_base?(node)
 
           range = node.loc.selector
 

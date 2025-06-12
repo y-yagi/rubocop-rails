@@ -19,8 +19,10 @@ RSpec.describe RuboCop::Cop::Rails::PluckInWhere, :config do
 
     it 'registers an offense and corrects when using `ids` in `where` for constant' do
       expect_offense(<<~RUBY)
-        Post.where(user_id: User.active.ids)
-                                        ^^^ Use `select(:id)` instead of `ids` within `where` query method.
+        class C < ApplicationRecord
+          Post.where(user_id: User.active.ids)
+                                          ^^^ Use `select(:id)` instead of `ids` within `where` query method.
+        end
       RUBY
 
       expect_correction(<<~RUBY)
@@ -161,6 +163,42 @@ RSpec.describe RuboCop::Cop::Rails::PluckInWhere, :config do
           Post.where(user_id: users.active.select(:id))
         RUBY
       end
+    end
+  end
+
+  context 'with receiver' do
+    let(:enforced_style) { 'aggressive' }
+
+    it 'does not register an offense when not inheriting any class' do
+      expect_no_offenses(<<~RUBY)
+        class C; end
+        Post.where(user_id: C.pluck(:id))
+      RUBY
+    end
+
+    it 'does not register an offense when not inheriting `ApplicationRecord`' do
+      expect_no_offenses(<<~RUBY)
+        class C < Foo; end
+        Post.where(user_id: C.pluck(:id))
+      RUBY
+    end
+
+    it 'registers an offense when inheriting `ApplicationRecord`' do
+      expect_offense(<<~RUBY)
+        class C < ApplicationRecord
+          Post.where(user_id: C.pluck(:id))
+                                ^^^^^ Use `select` instead of `pluck` within `where` query method.
+        end
+      RUBY
+    end
+
+    it 'registers an offense when inheriting `ActiveRecord::Base`' do
+      expect_offense(<<~RUBY)
+        class C < ActiveRecord::Base
+          Post.where(user_id: C.pluck(:id))
+                                ^^^^^ Use `select` instead of `pluck` within `where` query method.
+        end
+      RUBY
     end
   end
 end
